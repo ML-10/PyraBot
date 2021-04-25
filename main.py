@@ -1,14 +1,10 @@
 import asyncio
-import ctypes
 import functools
 import itertools
-import json
 import logging
 import math
 import os
 import random
-import re
-import sys
 import typing
 
 import aioconsole
@@ -20,9 +16,9 @@ import youtube_dl
 from async_timeout import timeout
 from bs4 import BeautifulSoup
 from discord.ext import commands
-from discord.voice_client import VoiceClient
 from googletrans import LANGCODES, Translator
 from pretty_help import PrettyHelp
+from keepalive import keepalive
 
 translator = Translator()
 
@@ -40,7 +36,7 @@ prefix = '!'
 bot = commands.Bot(prefix, help_command=PrettyHelp(
     color=discord.Color.orange()))
 
-Seco.Database_dir = "C:\\Users\\sophi\\Desktop\\bot\\discord-py-meowbot\\economy-db\\"
+Seco.Database_dir = ""
 Seco.default_balance = 1000
 
 # string defs
@@ -53,10 +49,6 @@ noaccount = 'You do not have an account! Run {}register to register.'
 currency_unit = '₱'
 
 youtube_dl.utils.bug_reports_message = lambda: ''
-
-
-with open('amounts.json', 'r') as f:
-    amounts = json.load(f)
 
 # checks
 
@@ -90,20 +82,24 @@ def checkadmin(ctx):
 
 
 async def on_ready():
+    await Seco.setup_database(os.getcwd()+'/')
     print('Ready')
 
+with open('filter.txt') as f:
+    messagefilter = f.read().split(', ')
+    messagefilter[-1] = messagefilter[-1][:7]
 
 @bot.event
 async def on_message(message: discord.Message):
-    bad = False
     if message.author == bot.user:
         return
 
-    no = '''
-    with open('filter.txt') as f:
-        messagefilter = f.read().split(', ')
-        messagefilter[-1] = messagefilter[-1][:7]
-    '''
+    message_content = message.content.strip().lower()
+    if message.guild.id == 82739460435345345979324: 
+        for bad_word in messagefilter:
+            if bad_word in message_content:
+                await message.channel.send("{}, your message has been censored.".format(message.author.mention))
+                await bot.delete(message)
 
     await bot.process_commands(message)
 
@@ -806,4 +802,5 @@ bot.add_cog(General(bot))
 bot.add_cog(Currency(bot))
 bot.load_extension("jishaku")
 
+keepalive()
 bot.run(token)
