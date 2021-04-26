@@ -11,7 +11,6 @@ import aioconsole
 import discord
 import qrcode
 import requests
-import SimpleEconomy as Seco
 import youtube_dl
 from async_timeout import timeout
 from bs4 import BeautifulSoup
@@ -19,22 +18,24 @@ from discord.ext import commands
 from googletrans import LANGCODES, Translator
 from pretty_help import PrettyHelp
 from keepalive import keepalive
+from lib import Seco as SimpleEconomy
 
 translator = Translator()
 
 # Logging
 logger = logging.getLogger('discord')
 logger.setLevel(logging.INFO)
-handler = logging.FileHandler(
-    filename='log.log', encoding='utf-8', mode='w')
-handler.setFormatter(logging.Formatter(
-    '%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+handler = logging.FileHandler(filename='log.log', encoding='utf-8', mode='w')
+handler.setFormatter(
+    logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 
 token = os.getenv('BOT_TOKEN')
 prefix = '!'
-bot = commands.Bot(prefix, help_command=PrettyHelp(
-    color=discord.Color.orange()))
+bot = commands.Bot(prefix,
+                   help_command=PrettyHelp(color=discord.Color.orange()))
+
+Seco = SimpleEconomy(bot, os.getenv('SimpleEconomyApiToken'), "pyrabot")
 
 Seco.Database_dir = ""
 Seco.default_balance = 1000
@@ -82,12 +83,13 @@ def checkadmin(ctx):
 
 
 async def on_ready():
-    await Seco.setup_database(os.getcwd()+'/')
     print('Ready')
+
 
 with open('filter.txt') as f:
     messagefilter = f.read().split(', ')
     messagefilter[-1] = messagefilter[-1][:7]
+
 
 @bot.event
 async def on_message(message: discord.Message):
@@ -95,10 +97,12 @@ async def on_message(message: discord.Message):
         return
 
     message_content = message.content.strip().lower()
-    if message.guild.id == 82739460435345345979324: 
+    if message.guild.id == 82739460435345345979324:
         for bad_word in messagefilter:
             if bad_word in message_content:
-                await message.channel.send("{}, your message has been censored.".format(message.author.mention))
+                await message.channel.send(
+                    "{}, your message has been censored.".format(
+                        message.author.mention))
                 await bot.delete(message)
 
     await bot.process_commands(message)
@@ -130,13 +134,19 @@ class YTDLSource(discord.PCMVolumeTransformer):
     }
 
     FFMPEG_OPTIONS = {
-        'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+        'before_options':
+        '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
         'options': '-vn',
     }
 
     ytdl = youtube_dl.YoutubeDL(YTDL_OPTIONS)
 
-    def __init__(self, ctx: commands.Context, source: discord.FFmpegPCMAudio, *, data: dict, volume: float = 0.5):
+    def __init__(self,
+                 ctx: commands.Context,
+                 source: discord.FFmpegPCMAudio,
+                 *,
+                 data: dict,
+                 volume: float = 0.5):
         super().__init__(source, volume)
 
         self.requester = ctx.author
@@ -162,11 +172,17 @@ class YTDLSource(discord.PCMVolumeTransformer):
         return '**{0.title}** by **{0.uploader}**'.format(self)
 
     @classmethod
-    async def create_source(cls, ctx: commands.Context, search: str, *, loop: asyncio.BaseEventLoop = None):
+    async def create_source(cls,
+                            ctx: commands.Context,
+                            search: str,
+                            *,
+                            loop: asyncio.BaseEventLoop = None):
         loop = loop or asyncio.get_event_loop()
 
-        partial = functools.partial(
-            cls.ytdl.extract_info, search, download=False, process=False)
+        partial = functools.partial(cls.ytdl.extract_info,
+                                    search,
+                                    download=False,
+                                    process=False)
         data = await loop.run_in_executor(None, partial)
 
         if data is None:
@@ -187,8 +203,9 @@ class YTDLSource(discord.PCMVolumeTransformer):
                     'Couldn\'t find anything that matches `{}`'.format(search))
 
         webpage_url = process_info['webpage_url']
-        partial = functools.partial(
-            cls.ytdl.extract_info, webpage_url, download=False)
+        partial = functools.partial(cls.ytdl.extract_info,
+                                    webpage_url,
+                                    download=False)
         processed_info = await loop.run_in_executor(None, partial)
 
         if processed_info is None:
@@ -203,9 +220,12 @@ class YTDLSource(discord.PCMVolumeTransformer):
                     info = processed_info['entries'].pop(0)
                 except IndexError:
                     raise YTDLError(
-                        'Couldn\'t retrieve any matches for `{}`'.format(webpage_url))
+                        'Couldn\'t retrieve any matches for `{}`'.format(
+                            webpage_url))
 
-        return cls(ctx, discord.FFmpegPCMAudio(info['url'], **cls.FFMPEG_OPTIONS), data=info)
+        return cls(ctx,
+                   discord.FFmpegPCMAudio(info['url'], **cls.FFMPEG_OPTIONS),
+                   data=info)
 
     @staticmethod
     def parse_duration(duration: int):
@@ -234,15 +254,19 @@ class Song:
         self.requester = source.requester
 
     def create_embed(self):
-        embed = (discord.Embed(title='Now playing',
-                               description='```css\n{0.source.title}\n```'.format(
-                                   self),
-                               color=discord.Color.blurple())
-                 .add_field(name='Duration', value=self.source.duration)
-                 .add_field(name='Requested by', value=self.requester.mention)
-                 .add_field(name='Uploader', value='[{0.source.uploader}]({0.source.uploader_url})'.format(self))
-                 .add_field(name='URL', value='[Click]({0.source.url})'.format(self))
-                 .set_thumbnail(url=self.source.thumbnail))
+        embed = (discord.Embed(
+            title='Now playing',
+            description='```css\n{0.source.title}\n```'.format(self),
+            color=discord.Color.blurple()).add_field(
+                name='Duration', value=self.source.duration).add_field(
+                    name='Requested by',
+                    value=self.requester.mention).add_field(
+                        name='Uploader',
+                        value='[{0.source.uploader}]({0.source.uploader_url})'.
+                        format(self)).add_field(
+                            name='URL',
+                            value='[Click]({0.source.url})'.format(self)).
+                 set_thumbnail(url=self.source.thumbnail))
 
         return embed
 
@@ -250,7 +274,9 @@ class Song:
 class SongQueue(asyncio.Queue):
     def __getitem__(self, item):
         if isinstance(item, slice):
-            return list(itertools.islice(self._queue, item.start, item.stop, item.step))
+            return list(
+                itertools.islice(self._queue, item.start, item.stop,
+                                 item.step))
         else:
             return self._queue[item]
 
@@ -327,7 +353,8 @@ class VoiceState:
 
             self.current.source.volume = self._volume
             self.voice.play(self.current.source, after=self.play_next_song)
-            await self.current.source.channel.send(embed=self.current.create_embed())
+            await self.current.source.channel.send(
+                embed=self.current.create_embed())
 
             await self.next.wait()
 
@@ -353,7 +380,6 @@ class VoiceState:
 
 class Music(commands.Cog):
     """A category for commands related to playing music."""
-
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.voice_states = {}
@@ -379,7 +405,8 @@ class Music(commands.Cog):
     async def cog_before_invoke(self, ctx: commands.Context):
         ctx.voice_state = self.get_voice_state(ctx)
 
-    async def cog_command_error(self, ctx: commands.Context, error: commands.CommandError):
+    async def cog_command_error(self, ctx: commands.Context,
+                                error: commands.CommandError):
         await ctx.send('An error occurred: {}'.format(str(error)))
 
     @commands.command(name='join', invoke_without_subcommand=True)
@@ -395,14 +422,18 @@ class Music(commands.Cog):
 
     @commands.command(name='summon')
     @commands.has_permissions(manage_guild=True)
-    async def _summon(self, ctx: commands.Context, *, channel: discord.VoiceChannel = None):
+    async def _summon(self,
+                      ctx: commands.Context,
+                      *,
+                      channel: discord.VoiceChannel = None):
         """Summons the bot to a voice channel.
         If no channel was specified, it joins your channel.
         """
 
         if not channel and not ctx.author.voice:
             raise VoiceError(
-                'You are neither connected to a voice channel nor specified a channel to join.')
+                'You are neither connected to a voice channel nor specified a channel to join.'
+            )
 
         destination = channel or ctx.author.voice.channel
         if ctx.voice_state.voice:
@@ -442,7 +473,8 @@ class Music(commands.Cog):
     async def _pause(self, ctx: commands.Context):
         """Pauses the currently playing song."""
 
-        if not ctx.voice_state.is_playing and ctx.voice_state.voice.is_playing():
+        if not ctx.voice_state.is_playing and ctx.voice_state.voice.is_playing(
+        ):
             ctx.voice_state.voice.pause()
             await ctx.message.add_reaction('⏯')
 
@@ -451,7 +483,8 @@ class Music(commands.Cog):
     async def _resume(self, ctx: commands.Context):
         """Resumes a currently paused song."""
 
-        if not ctx.voice_state.is_playing and ctx.voice_state.voice.is_paused():
+        if not ctx.voice_state.is_playing and ctx.voice_state.voice.is_paused(
+        ):
             ctx.voice_state.voice.resume()
             await ctx.message.add_reaction('⏯')
 
@@ -488,7 +521,8 @@ class Music(commands.Cog):
                 await ctx.message.add_reaction('⏭')
                 ctx.voice_state.skip()
             else:
-                await ctx.send('Skip vote added, currently at **{}/3**'.format(total_votes))
+                await ctx.send('Skip vote added, currently at **{}/3**'.format(
+                    total_votes))
 
         else:
             await ctx.send('You have already voted to skip this song.')
@@ -509,12 +543,14 @@ class Music(commands.Cog):
         end = start + items_per_page
 
         queue = ''
-        for i, song in enumerate(ctx.voice_state.songs[start:end], start=start):
+        for i, song in enumerate(ctx.voice_state.songs[start:end],
+                                 start=start):
             queue += '`{0}.` [**{1.source.title}**]({1.source.url})\n'.format(
                 i + 1, song)
 
-        embed = (discord.Embed(description='**{} tracks:**\n\n{}'.format(len(ctx.voice_state.songs), queue))
-                 .set_footer(text='Viewing page {}/{}'.format(page, pages)))
+        embed = (discord.Embed(description='**{} tracks:**\n\n{}'.format(
+            len(ctx.voice_state.songs), queue)).set_footer(
+                text='Viewing page {}/{}'.format(page, pages)))
         await ctx.send(embed=embed)
 
     @commands.command(name='shuffle')
@@ -564,9 +600,13 @@ class Music(commands.Cog):
 
         async with ctx.typing():
             try:
-                source = await YTDLSource.create_source(ctx, search, loop=self.bot.loop)
+                source = await YTDLSource.create_source(ctx,
+                                                        search,
+                                                        loop=self.bot.loop)
             except YTDLError as e:
-                await ctx.send('An error occurred while processing this request: {}'.format(str(e)))
+                await ctx.send(
+                    'An error occurred while processing this request: {}'.
+                    format(str(e)))
             else:
                 song = Song(source)
 
@@ -586,11 +626,11 @@ class Music(commands.Cog):
 
 class General(commands.Cog):
     """A category for commands that don't fit into the other categories."""
-
     def __init__(self, bot):
         self.bot = bot
 
-    async def cog_command_error(self, ctx: commands.Context, error: commands.CommandError):
+    async def cog_command_error(self, ctx: commands.Context,
+                                error: commands.CommandError):
         await ctx.send(error.format(str(error)))
 
     def cog_check(self, ctx: commands.Context):
@@ -601,17 +641,22 @@ class General(commands.Cog):
     @commands.command()
     async def hello(self, ctx: commands.Context, *args):
         '''Say hello.'''
-        await ctx.message.channel.send('Hello {0.author.mention}! Did you know that @ML-10 is my creator?'.format(ctx.message))
+        await ctx.message.channel.send(
+            'Hello {0.author.mention}! Did you know that @ML-10 is my creator?'
+            .format(ctx.message))
 
     @commands.command()
     async def solve(self, ctx: commands.Context, equation):
         '''Evaluate a Python expression.'''
-        await ctx.message.channel.send('The answer to: "' + equation + '" is ' + str(eval(equation)))
+        await ctx.message.channel.send('The answer to: "' + equation +
+                                       '" is ' + str(eval(equation)))
 
     @commands.command()
     async def translate(self, ctx: commands.Context, text: str, lang: str):
         """Detects language and translates text to another language."""
-        await ctx.send('Translated: '+translator.translate(text, dest=LANGCODES[lang.lower()]).text)
+        await ctx.send(
+            'Translated: ' +
+            translator.translate(text, dest=LANGCODES[lang.lower()]).text)
 
     @commands.command()
     async def translatehelp(self, ctx):
@@ -651,28 +696,36 @@ class General(commands.Cog):
     @commands.command()
     async def streaming(self, ctx: commands.Context, *, stream):
         "Changes bot's streaming status."
-        await bot.change_presence(activity=discord.Streaming(name=stream, url=""))
+        await bot.change_presence(
+            activity=discord.Streaming(name=stream, url=""))
         await ctx.message.add_reaction('✅')
 
     @commands.is_owner()
     @commands.command()
     async def listening(self, ctx: commands.Context, *, song):
         "Changes bot's listening status."
-        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=song))
+        await bot.change_presence(activity=discord.Activity(
+            type=discord.ActivityType.listening, name=song))
         await ctx.message.add_reaction('✅')
 
     @commands.is_owner()
     @commands.command()
     async def watching(self, ctx: commands.Context, *, movie):
         "Changes bot's watching status."
-        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=movie))
+        await bot.change_presence(activity=discord.Activity(
+            type=discord.ActivityType.watching, name=movie))
         await ctx.message.add_reaction('✅')
 
     @commands.command()
     @commands.check(checkforavraaj)
-    async def warn(self, ctx, member: discord.Member, reason: typing.Optional[str] = 'breaking the rules'):
+    async def warn(self,
+                   ctx,
+                   member: discord.Member,
+                   reason: typing.Optional[str] = 'breaking the rules'):
         'Warns a member with an optional reason.'
-        await member.send(member.mention + ' YOU HAVE BEEN WARNED FROM guild "' + member.guild.name + '" FOR ' + reason)
+        await member.send(member.mention +
+                          ' YOU HAVE BEEN WARNED FROM guild "' +
+                          member.guild.name + '" FOR ' + reason)
 
     @commands.command()
     async def ping(self, ctx):
@@ -682,10 +735,9 @@ class General(commands.Cog):
     @commands.command(aliases=['vote'])
     async def poll(self, ctx: commands.Context, *, statement):
         "Starts a poll."
-        embed = discord.Embed(
-            title="Vote! ["+statement+"]",
-            description=statement,
-            color=discord.Colour.blurple())
+        embed = discord.Embed(title="Vote! [" + statement + "]",
+                              description=statement,
+                              color=discord.Colour.blurple())
         embed.set_footer(text="from PyraBot")
         message = await ctx.send(embed=embed)
         await message.add_reaction('👍')
@@ -706,13 +758,14 @@ class General(commands.Cog):
         element = soup.find('div', id='page-content')
         element = element.text.strip()
 
-        for chunk in list(element[i:i+2000] for i in range(0, len(element), 2000)):
+        for chunk in list(element[i:i + 2000]
+                          for i in range(0, len(element), 2000)):
             await ctx.send(chunk)
 
     @commands.command()
     async def spam(self, ctx: commands.Context):
         for i in range(10):
-            await bot.get_channel(767488243263864842).send('spam'*10)
+            await bot.get_channel(767488243263864842).send('spam' * 10)
 
     @commands.command()
     async def qrcode(self, ctx: commands.Context, *, data: str):
@@ -745,7 +798,9 @@ class General(commands.Cog):
             'https://en.wikipedia.org/wiki/Cock_and_ball_torture')
         soup = BeautifulSoup(text.content, 'html.parser')
 
-        for chunk in [soup.text[i:i+2000] for i in range(0, len(soup.text), 2000)]:
+        for chunk in [
+                soup.text[i:i + 2000] for i in range(0, len(soup.text), 2000)
+        ]:
             await ctx.send(chunk)
 
 
@@ -760,24 +815,23 @@ class Currency(commands.Cog):
             balance = person['balance']
             place = leaderboard.index(person) + 1
             send_text += f'#{place}: {bot.get_user(userid).display_name}: {balance}{currency_unit}\n'
-        await ctx.send(embed=discord.Embed(title=f"Top users in {ctx.author.guild.name}", description=send_text, color=discord.Colour.red()))
-
-    @commands.command()
-    async def register(self, ctx: commands.Context):
-        '''Registers you into the PyraBot currency system.'''
-        await Seco.user_check(ctx.author.id)
-        await ctx.send(f'Registered! Use {prefix}help to learn more.')
+        await ctx.send(
+            embed=discord.Embed(title=f"Top users in {ctx.author.guild.name}",
+                                description=send_text,
+                                color=discord.Colour.red()))
 
     @commands.command(aliases=['balance'])
     async def bal(self, ctx: commands.Context):
         '''Shows your current balance.'''
-        await Seco.user_check(ctx.author.id)
         balance = await Seco.get_balance(ctx.author.id)
         await ctx.send(f'Your balance is {str(balance)}{currency_unit}.')
 
     @commands.command()
-    async def give(self, ctx: commands.Context, member: discord.Member, amount: int):
-        await Seco.transfer_balance(from_userid=ctx.author.id, to_userid=member.id, amount=amount)
+    async def give(self, ctx: commands.Context, member: discord.Member,
+                   amount: int):
+        await Seco.transfer_balance(from_userid=ctx.author.id,
+                                    to_userid=member.id,
+                                    amount=amount)
         await ctx.send(f'Added {amount} to {member.display_name}\'s balance')
 
 
@@ -790,11 +844,14 @@ async def background_task():
             if args[0] == 'exec':
                 exec(args[1])
             elif args[0] == 'say':
-                await discord.utils.get(bot.get_guild(int(args[1])).text_channels, name=args[2]).send(' '.join(args[3:]))
+                await discord.utils.get(bot.get_guild(int(
+                    args[1])).text_channels,
+                                        name=args[2]).send(' '.join(args[3:]))
             else:
                 print('Command not found')
         except Exception as e:
             print(e)
+
 
 bot.loop.create_task(background_task())
 bot.add_cog(Music(bot))

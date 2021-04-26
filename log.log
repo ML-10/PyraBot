@@ -1,6 +1,3 @@
-2021-04-25 10:09:49,442:INFO:discord.client: logging in using static token
-2021-04-25 10:09:49,672:INFO:discord.gateway: Shard ID None has sent the IDENTIFY payload.
-2021-04-25 10:09:49,795:INFO:discord.gateway: Shard ID None has connected to Gateway: ["gateway-prd-main-0sx4",{"micros":81618,"calls":["discord-sessions-prd-2-22",{"micros":78328,"calls":["start_session",{"micros":28030,"calls":["api-prd-main-4rz9",{"micros":25169,"calls":["get_user",{"micros":2606},"add_authorized_ip",{"micros":1532},"get_guilds",{"micros":4264},"coros_wait",{"micros":2}]}]},"guilds_connect",{"micros":5,"calls":[]},"presence_connect",{"micros":1,"calls":[]}]}]}] (Session ID: 29d212f27aecc56414e1f1c139c20f8a).
-2021-04-25 11:19:19,578:INFO:discord.client: Got a request to RESUME the websocket.
-2021-04-25 11:19:19,716:INFO:discord.gateway: Shard ID None has sent the RESUME payload.
-2021-04-25 11:19:19,763:INFO:discord.gateway: Shard ID None has successfully RESUMED session 29d212f27aecc56414e1f1c139c20f8a under trace ["gateway-prd-main-9sjp",{"micros":8676,"calls":["discord-sessions-prd-2-22",{"micros":13}]}].
+2021-04-26 06:37:58,127:INFO:discord.client: logging in using static token
+2021-04-26 06:37:58,396:INFO:discord.gateway: Shard ID None has sent the IDENTIFY payload.
+2021-04-26 06:37:58,523:INFO:discord.gateway: Shard ID None has connected to Gateway: ["gateway-prd-main-2n97",{"micros":83502,"calls":["discord-sessions-prd-2-5",{"micros":80800,"calls":["start_session",{"micros":31104,"calls":["api-prd-main-gkjp",{"micros":28776,"calls":["get_user",{"micros":2049},"add_authorized_ip",{"micros":1296},"get_guilds",{"micros":11734},"coros_wait",{"micros":0}]}]},"guilds_connect",{"micros":12,"calls":[]},"presence_connect",{"micros":1,"calls":[]}]}]}] (Session ID: 10c1edb1b504407a0d5ada03e74f15c3).
