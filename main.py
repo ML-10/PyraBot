@@ -14,11 +14,13 @@ import requests
 import youtube_dl
 from async_timeout import timeout
 from bs4 import BeautifulSoup
-from discord.ext import commands
+from discord.ext import commands, levenshtein
 from googletrans import LANGCODES, Translator
 from pretty_help import PrettyHelp
 from keepalive import keepalive
-from lib import Seco as SimpleEconomy
+from SimpleEconomy import Seco as SimpleEconomy
+from PIL import Image
+from owotext import OwO
 
 translator = Translator()
 
@@ -30,15 +32,21 @@ handler.setFormatter(
     logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 
+intents = discord.Intents.all()
+intents.presences = False
+intents.typing = False
+
 token = os.getenv('BOT_TOKEN')
-prefix = '!'
+prefix = ['pyra ', 'Pyra ', 'p ', 'P ']
 bot = commands.Bot(prefix,
-                   help_command=PrettyHelp(color=discord.Color.orange()))
+                   help_command=PrettyHelp(color=discord.Color.orange()), 
+                   intents=intents)
 
-Seco = SimpleEconomy(bot, os.getenv('SimpleEconomyApiToken'), "pyrabot")
+drip = Image.open('drip.jpg')
 
-Seco.Database_dir = ""
-Seco.default_balance = 1000
+Seco = SimpleEconomy(bot,os.getenv("SimpleEconomyApiToken"),"pyrabot",def_bal=1000,def_bank=0) 
+
+uwu = OwO()
 
 # string defs
 empty = 'Empty queue.'
@@ -64,7 +72,7 @@ def checkforavraaj(ctx: commands.Context):
         bool: True if the user is AVRAAJ.
     """
     return not ctx.author.id == 682859915181817886
-
+                                    
 
 def checkml(ctx):
     """A check for the user circles.png.
@@ -83,8 +91,12 @@ def checkadmin(ctx):
 
 
 async def on_ready():
+    levenshtein.Levenshtein(bot, max_length=3)
     print('Ready')
 
+async def on_command_suggest(self, ctx: commands.Context, suggested_commands):
+    body = 'suggested commands: ' + ' '.join([f'`{command}`' for command in suggested_commands])
+    await ctx.send(body)
 
 with open('filter.txt') as f:
     messagefilter = f.read().split(', ')
@@ -140,6 +152,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
     }
 
     ytdl = youtube_dl.YoutubeDL(YTDL_OPTIONS)
+    ytdl.cache.remove()
 
     def __init__(self,
                  ctx: commands.Context,
@@ -227,6 +240,72 @@ class YTDLSource(discord.PCMVolumeTransformer):
                    discord.FFmpegPCMAudio(info['url'], **cls.FFMPEG_OPTIONS),
                    data=info)
 
+    @classmethod
+    async def search_source(self, ctx: commands.Context, search: str, *, loop: asyncio.BaseEventLoop = None, bot):
+        self.bot = bot
+        channel = ctx.channel
+        loop = loop or asyncio.get_event_loop()
+
+        self.search_query = '%s%s:%s' % ('ytsearch', 10, ''.join(search))
+
+        partial = functools.partial(self.ytdl.extract_info, self.search_query, download=False, process=False)
+        info = await loop.run_in_executor(None, partial)
+
+        self.search = {}
+        self.search["title"] = f'Search results for:\n**{search}**'
+        self.search["type"] = 'rich'
+        self.search["color"] = 7506394
+        self.search["author"] = {'name': f'{ctx.author.name}', 'url': f'{ctx.author.avatar_url}',
+                                'icon_url': f'{ctx.author.avatar_url}'}
+
+        lst = []
+        count = 0
+        e_list = []
+        for e in info['entries']:
+            # lst.append(f'`{info["entries"].index(e) + 1}.` {e.get("title")} **[{YTDLSource.parse_duration(int(e.get("duration")))}]**\n')
+            VId = e.get('id')
+            VUrl = 'https://www.youtube.com/watch?v=%s' % (VId)
+            lst.append(f'`{count + 1}.` [{e.get("title")}]({VUrl})\n')
+            count += 1
+            e_list.append(e)
+
+        lst.append('\n**Type a number to make a choice, Type `cancel` to exit**')
+        self.search["description"] = "\n".join(lst)
+
+        em = discord.Embed.from_dict(self.search)
+        await ctx.send(embed=em, delete_after=45.0)
+
+        def check(msg):
+            return msg.content.isdigit() == True and msg.channel == channel or msg.content == 'cancel' or msg.content == 'Cancel'
+
+        try:
+            m = await self.bot.wait_for('message', check=check, timeout=45.0)
+
+        except asyncio.TimeoutError:
+            rtrn = 'timeout'
+
+        else:
+            if m.content.isdigit() == True:
+                sel = int(m.content)
+                if 0 < sel <= 10:
+                    for key, value in info.items():
+                        if key == 'entries':
+                            """data = value[sel - 1]"""
+                            VId = e_list[sel-1]['id']
+                            VUrl = 'https://www.youtube.com/watch?v=%s' % (VId)
+                            partial = functools.partial(self.ytdl.extract_info, VUrl, download=False)
+                            data = await loop.run_in_executor(None, partial)
+                    rtrn = self(ctx, discord.FFmpegPCMAudio(data['url'], **self.FFMPEG_OPTIONS), data=data)
+                else:
+                    rtrn = 'sel_invalid'
+            elif m.content == 'cancel':
+                rtrn = 'cancel'
+            else:
+                rtrn = 'sel_invalid'
+
+        return rtrn
+
+
     @staticmethod
     def parse_duration(duration: int):
         minutes, seconds = divmod(duration, 60)
@@ -312,6 +391,8 @@ class VoiceState:
 
         self.audio_player = bot.loop.create_task(self.audio_player_task())
 
+        self.exists = True
+
     def __del__(self):
         self.audio_player.cancel()
 
@@ -338,8 +419,9 @@ class VoiceState:
     async def audio_player_task(self):
         while True:
             self.next.clear()
+            self.now = None
 
-            if not self.loop:
+            if self.loop == False:
                 # Try to get the next song within 3 minutes.
                 # If no song will be added to the queue in time,
                 # the player will disconnect due to performance
@@ -349,13 +431,20 @@ class VoiceState:
                         self.current = await self.songs.get()
                 except asyncio.TimeoutError:
                     self.bot.loop.create_task(self.stop())
+                    await self._ctx.send("I left the voice channel due to inactivity!")
+                    self.exists = False
+                    self.voice.leave()
                     return
-
-            self.current.source.volume = self._volume
-            self.voice.play(self.current.source, after=self.play_next_song)
-            await self.current.source.channel.send(
-                embed=self.current.create_embed())
-
+                
+                self.current.source.volume = self._volume
+                self.voice.play(self.current.source, after=self.play_next_song)
+                await self.current.source.channel.send(embed=self.current.create_embed())
+            
+            #If the song is looped
+            elif self.loop == True:
+                self.now = discord.FFmpegPCMAudio(self.current.source.stream_url, **YTDLSource.FFMPEG_OPTIONS)
+                self.voice.play(self.now, after=self.play_next_song)
+            
             await self.next.wait()
 
     def play_next_song(self, error=None):
@@ -386,7 +475,7 @@ class Music(commands.Cog):
 
     def get_voice_state(self, ctx: commands.Context):
         state = self.voice_states.get(ctx.guild.id)
-        if not state:
+        if not state or not state.exists:
             state = VoiceState(self.bot, ctx)
             self.voice_states[ctx.guild.id] = state
 
@@ -459,7 +548,7 @@ class Music(commands.Cog):
 
         if not ctx.voice_state.is_playing:
             return await ctx.send('Nothing being played at the moment.')
-        ctx.voice_state.volume = volume / 100
+        ctx.voice_state.current.source.volume = volume / 100
         await ctx.send('Volume of the player set to {}%'.format(volume))
 
     @commands.command(name='now', aliases=['current'])
@@ -472,9 +561,7 @@ class Music(commands.Cog):
     @commands.has_permissions(manage_guild=True)
     async def _pause(self, ctx: commands.Context):
         """Pauses the currently playing song."""
-
-        if not ctx.voice_state.is_playing and ctx.voice_state.voice.is_playing(
-        ):
+        if ctx.voice_state.voice.is_playing():
             ctx.voice_state.voice.pause()
             await ctx.message.add_reaction('⏯')
 
@@ -483,8 +570,7 @@ class Music(commands.Cog):
     async def _resume(self, ctx: commands.Context):
         """Resumes a currently paused song."""
 
-        if not ctx.voice_state.is_playing and ctx.voice_state.voice.is_paused(
-        ):
+        if ctx.voice_state.voice.is_paused():
             ctx.voice_state.voice.resume()
             await ctx.message.add_reaction('⏯')
 
@@ -495,7 +581,7 @@ class Music(commands.Cog):
 
         ctx.voice_state.songs.clear()
 
-        if not ctx.voice_state.is_playing:
+        if ctx.voice_state.is_playing:
             ctx.voice_state.voice.stop()
             await ctx.message.add_reaction('⏹')
 
@@ -612,6 +698,33 @@ class Music(commands.Cog):
 
                 await ctx.voice_state.songs.put(song)
                 await ctx.send('Enqueued {}'.format(str(source)))
+
+    @commands.command(name='search')
+    async def _search(self, ctx: commands.Context, *, search: str):
+        """Searches Youtube.
+        It returns an embed of the first 10 results collected from Youtube.
+        Then the user can choose one of the titles by typing a number in chat or they can cancel by typing "cancel" in chat.
+        Each title in the list can be clicked as a link.
+        """
+        async with ctx.typing():
+            try:
+                source = await YTDLSource.search_source(ctx, search, loop=self.bot.loop, bot=self.bot)
+            except YTDLError as e:
+                await ctx.send('An error occurred while processing this request: {}'.format(str(e)))
+            else:
+                if source == 'sel_invalid':
+                    await ctx.send('Invalid selection')
+                elif source == 'cancel':
+                    await ctx.send(':white_check_mark:')
+                elif source == 'timeout':
+                    await ctx.send(':alarm_clock: **Timed out**')
+                else:
+                    if not ctx.voice_state.voice:
+                        await ctx.invoke(self._join)
+
+                    song = Song(source)
+                    await ctx.voice_state.songs.put(song)
+                    await ctx.send('Enqueued {}'.format(str(source)))
 
     @_join.before_invoke
     @_play.before_invoke
@@ -803,36 +916,59 @@ class General(commands.Cog):
         ]:
             await ctx.send(chunk)
 
+    @commands.command()
+    async def drip(self, ctx: commands.Context):
+        '''Makes an image of you with drip.'''
+        await ctx.author.avatar_url.save('avatar.png')
+        avatar = Image.open('avatar.png')
+        avatar = avatar.resize((150, 150))
+        drip.paste(avatar, box=(180, 50))
+        drip.save('result.png')
+        await ctx.send(file=discord.File('result.png'))
+
+    @commands.command(aliases=['owo', 'uwu', 'uwuify'])
+    async def owoify(self, ctx: commands.Context, *, text: str):
+        '''OwOifies text.'''
+        await ctx.send(embed=discord.Embed(title='OwO what\'s this?', description=uwu.whatsthis(text), color=discord.Colour.red()))
 
 class Currency(commands.Cog):
+    '''A category for commands related to currency.'''
     @commands.command()
     async def top(self, ctx: commands.Context):
         '''Shows the top people on the leaderboard.'''
-        leaderboard = await Seco.get_leaderboard('balance')
+        lb = await Seco.leaderboard("balance")
+        print(lb)
         send_text = ""
-        for person in leaderboard:
+        for person in lb:
             userid = person['userid']
             balance = person['balance']
-            place = leaderboard.index(person) + 1
-            send_text += f'#{place}: {bot.get_user(userid).display_name}: {balance}{currency_unit}\n'
+            place = lb.index(person) + 1
+            print(userid)
+            user = await bot.fetch_user(int(userid))
+            send_text += f'#{place}: {user.display_name}: {balance}{currency_unit}\n'
         await ctx.send(
             embed=discord.Embed(title=f"Top users in {ctx.author.guild.name}",
                                 description=send_text,
                                 color=discord.Colour.red()))
 
     @commands.command(aliases=['balance'])
-    async def bal(self, ctx: commands.Context):
+    async def bal(self, ctx: commands.Context, user: typing.Optional[discord.User]):
         '''Shows your current balance.'''
-        balance = await Seco.get_balance(ctx.author.id)
-        await ctx.send(f'Your balance is {str(balance)}{currency_unit}.')
+        balance = await Seco.get_balance(ctx.author.id if not user else user)
+        await ctx.send(embed=discord.Embed(title='Balance', description=f'{ctx.author.mention if not user else user.mention}\'s balance is {str(balance)}{currency_unit}.', color=discord.Colour.red()))
 
     @commands.command()
     async def give(self, ctx: commands.Context, member: discord.Member,
                    amount: int):
-        await Seco.transfer_balance(from_userid=ctx.author.id,
-                                    to_userid=member.id,
-                                    amount=amount)
-        await ctx.send(f'Added {amount} to {member.display_name}\'s balance')
+        if amount <= 0:
+            await ctx.send('You can\'t send negative amounts of money!')
+        elif Seco.get_balance(ctx.author.id) < amount:
+            await ctx.send('It looks like you\'re trying to send that user more money than you have!')
+        else:
+            await Seco.transfer_balance(ctx.author.id,
+                                        member.id,
+                                        amount)
+            await ctx.send(f'Added {amount} to {member.display_name}\'s balance')
 
 
 async def background_task():
