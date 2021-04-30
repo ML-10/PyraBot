@@ -587,6 +587,7 @@ class Music(commands.Cog):
         ctx.voice_state.songs.clear()
 
         if ctx.voice_state.is_playing:
+            ctx.voice_state.loop = False
             ctx.voice_state.voice.stop()
             await ctx.message.add_reaction('⏹')
 
@@ -601,6 +602,7 @@ class Music(commands.Cog):
 
         voter = ctx.message.author
         if voter == ctx.voice_state.current.requester:
+            ctx.voice_state.loop = False
             await ctx.message.add_reaction('⏭')
             ctx.voice_state.skip()
 
@@ -676,6 +678,7 @@ class Music(commands.Cog):
         # Inverse boolean value to loop and unloop.
         ctx.voice_state.loop = not ctx.voice_state.loop
         await ctx.message.add_reaction('✅')
+        await ctx.send(f'Loop is now {ctx.voice_state.loop}.')
 
     @commands.command(name='play')
     async def _play(self, ctx: commands.Context, *, search: str):
