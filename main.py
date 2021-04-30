@@ -21,6 +21,11 @@ from keepalive import keepalive
 from SimpleEconomy import Seco as SimpleEconomy
 from PIL import Image
 from owotext import OwO
+from lyricsgenius import Genius
+
+genius = Genius()
+artist = genius.search_artist("Andy Shauf", max_songs=3, sort="title")
+print(artist.songs)
 
 translator = Translator()
 
@@ -684,6 +689,8 @@ class Music(commands.Cog):
         if not ctx.voice_state.voice:
             await ctx.invoke(self._join)
 
+        await ctx.send('Loading song...')
+
         async with ctx.typing():
             try:
                 source = await YTDLSource.create_source(ctx,
@@ -958,11 +965,11 @@ class Currency(commands.Cog):
         await ctx.send(embed=discord.Embed(title='Balance', description=f'{ctx.author.mention if not user else user.mention}\'s balance is {str(balance)}{currency_unit}.', color=discord.Colour.red()))
 
     @commands.command()
-    async def give(self, ctx: commands.Context, member: discord.Member,
-                   amount: int):
+    async def give(self, ctx: commands.Context, member: discord.Member, amount: int):
+        '''Gives an amount of money to another member.'''
         if amount <= 0:
             await ctx.send('You can\'t send negative amounts of money!')
-        elif Seco.get_balance(ctx.author.id) < amount:
+        elif await Seco.get_balance(ctx.author.id) < amount:
             await ctx.send('It looks like you\'re trying to send that user more money than you have!')
         else:
             await Seco.transfer_balance(ctx.author.id,

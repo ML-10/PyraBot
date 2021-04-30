@@ -1,3 +1,95 @@
-2021-04-29 10:21:32,630:INFO:discord.client: logging in using static token
-2021-04-29 10:21:32,901:INFO:discord.gateway: Shard ID None has sent the IDENTIFY payload.
-2021-04-29 10:21:32,992:INFO:discord.gateway: Shard ID None has connected to Gateway: ["gateway-prd-main-2jcq",{"micros":51528,"calls":["discord-sessions-prd-2-77",{"micros":45322,"calls":["start_session",{"micros":24121,"calls":["api-prd-main-3lrw",{"micros":21505,"calls":["get_user",{"micros":2892},"add_authorized_ip",{"micros":1340},"get_guilds",{"micros":3352},"coros_wait",{"micros":1}]}]},"guilds_connect",{"micros":6,"calls":[]},"presence_connect",{"micros":3277,"calls":[]}]}]}] (Session ID: 40db81cedc8e5e94ee0407959f88f2b2).
+2021-04-30 05:55:59,372:INFO:discord.client: logging in using static token
+2021-04-30 05:55:59,634:INFO:discord.gateway: Shard ID None has sent the IDENTIFY payload.
+2021-04-30 05:55:59,768:INFO:discord.gateway: Shard ID None has connected to Gateway: ["gateway-prd-main-zwbs",{"micros":90008,"calls":["discord-sessions-prd-2-5",{"micros":88017,"calls":["start_session",{"micros":28967,"calls":["api-prd-main-q2jw",{"micros":26520,"calls":["get_user",{"micros":3677},"add_authorized_ip",{"micros":2255},"get_guilds",{"micros":6845},"coros_wait",{"micros":1}]}]},"guilds_connect",{"micros":4,"calls":[]},"presence_connect",{"micros":28525,"calls":[]}]}]}] (Session ID: ed5e25526557330ac5194fe2e86a8602).
+2021-04-30 05:56:19,268:INFO:discord.voice_client: Connecting to voice...
+2021-04-30 05:56:19,269:INFO:discord.voice_client: Starting voice handshake... (connection attempt 1)
+2021-04-30 05:56:19,520:INFO:discord.voice_client: Voice handshake complete. Endpoint found sydney812.discord.media
+2021-04-30 05:56:20,825:INFO:discord.gateway: selected the voice protocol for use (xsalsa20_poly1305_lite)
+2021-04-30 05:56:21,046:INFO:discord.gateway: received secret key for voice connection
+2021-04-30 05:59:47,502:INFO:discord.player: Preparing to terminate ffmpeg process 472.
+2021-04-30 05:59:47,502:INFO:discord.player: ffmpeg process 472 successfully terminated with return code of 0.
+2021-04-30 06:03:09,782:INFO:discord.player: Preparing to terminate ffmpeg process 611.
+2021-04-30 06:03:09,783:INFO:discord.player: ffmpeg process 611 successfully terminated with return code of 0.
+2021-04-30 06:05:54,737:INFO:discord.player: Preparing to terminate ffmpeg process 626.
+2021-04-30 06:05:54,737:INFO:discord.player: ffmpeg process 626 has not terminated. Waiting to terminate...
+2021-04-30 06:05:54,743:INFO:discord.player: ffmpeg process 626 should have terminated with a return code of -9.
+2021-04-30 06:06:20,071:INFO:discord.player: Preparing to terminate ffmpeg process 640.
+2021-04-30 06:06:20,072:INFO:discord.player: ffmpeg process 640 has not terminated. Waiting to terminate...
+2021-04-30 06:06:20,075:INFO:discord.player: ffmpeg process 640 should have terminated with a return code of -9.
+2021-04-30 06:07:33,098:INFO:discord.player: Preparing to terminate ffmpeg process 679.
+2021-04-30 06:07:33,105:INFO:discord.player: ffmpeg process 679 successfully terminated with return code of -9.
+2021-04-30 06:07:33,107:INFO:discord.voice_client: The voice handshake is being terminated for Channel ID 835771184565059616 (Guild ID 827394604067979324)
+2021-04-30 06:07:33,107:INFO:discord.voice_client: Disconnecting from voice normally, close code 1000.
+2021-04-30 06:07:36,407:INFO:discord.voice_client: Connecting to voice...
+2021-04-30 06:07:36,407:INFO:discord.voice_client: Starting voice handshake... (connection attempt 1)
+2021-04-30 06:07:36,652:INFO:discord.voice_client: Voice handshake complete. Endpoint found sydney812.discord.media
+2021-04-30 06:07:38,013:INFO:discord.gateway: selected the voice protocol for use (xsalsa20_poly1305_lite)
+2021-04-30 06:07:38,242:INFO:discord.gateway: received secret key for voice connection
+2021-04-30 06:08:12,399:INFO:discord.player: Preparing to terminate ffmpeg process 685.
+2021-04-30 06:08:12,399:INFO:discord.player: ffmpeg process 685 has not terminated. Waiting to terminate...
+2021-04-30 06:08:12,402:INFO:discord.player: ffmpeg process 685 should have terminated with a return code of -9.
+2021-04-30 06:08:41,911:INFO:discord.player: Preparing to terminate ffmpeg process 669.
+2021-04-30 06:08:41,915:INFO:discord.player: ffmpeg process 669 has not terminated. Waiting to terminate...
+2021-04-30 06:08:41,922:INFO:discord.player: ffmpeg process 669 should have terminated with a return code of -9.
+2021-04-30 06:08:41,922:ERROR:discord.player: Calling the after function failed.
+Traceback (most recent call last):
+  File "/opt/virtualenvs/python3/lib/python3.8/site-packages/discord/player.py", line 616, in _call_after
+    self.after(error)
+  File "main.py", line 452, in play_next_song
+    raise VoiceError(str(error))
+VoiceError: [Errno 9] Bad file descriptor
+2021-04-30 06:09:11,704:INFO:discord.player: Preparing to terminate ffmpeg process 691.
+2021-04-30 06:09:11,705:INFO:discord.player: ffmpeg process 691 has not terminated. Waiting to terminate...
+2021-04-30 06:09:11,711:INFO:discord.player: ffmpeg process 691 should have terminated with a return code of -9.
+2021-04-30 06:09:43,354:INFO:discord.player: Preparing to terminate ffmpeg process 697.
+2021-04-30 06:09:43,358:INFO:discord.player: ffmpeg process 697 has not terminated. Waiting to terminate...
+2021-04-30 06:09:43,377:INFO:discord.player: ffmpeg process 697 should have terminated with a return code of -9.
+2021-04-30 06:11:19,534:INFO:discord.player: Preparing to terminate ffmpeg process 703.
+2021-04-30 06:11:19,535:INFO:discord.player: ffmpeg process 703 successfully terminated with return code of 0.
+2021-04-30 06:12:41,962:INFO:discord.player: Preparing to terminate ffmpeg process 753.
+2021-04-30 06:12:41,963:INFO:discord.player: ffmpeg process 753 successfully terminated with return code of 0.
+2021-04-30 06:14:04,372:INFO:discord.player: Preparing to terminate ffmpeg process 760.
+2021-04-30 06:14:04,373:INFO:discord.player: ffmpeg process 760 successfully terminated with return code of 0.
+2021-04-30 06:15:26,763:INFO:discord.player: Preparing to terminate ffmpeg process 766.
+2021-04-30 06:15:26,764:INFO:discord.player: ffmpeg process 766 successfully terminated with return code of 0.
+2021-04-30 06:16:49,157:INFO:discord.player: Preparing to terminate ffmpeg process 772.
+2021-04-30 06:16:49,158:INFO:discord.player: ffmpeg process 772 successfully terminated with return code of 0.
+2021-04-30 06:18:11,560:INFO:discord.player: Preparing to terminate ffmpeg process 786.
+2021-04-30 06:18:11,560:INFO:discord.player: ffmpeg process 786 successfully terminated with return code of 0.
+2021-04-30 06:19:33,959:INFO:discord.player: Preparing to terminate ffmpeg process 793.
+2021-04-30 06:19:33,960:INFO:discord.player: ffmpeg process 793 successfully terminated with return code of 0.
+2021-04-30 06:19:49,461:INFO:discord.player: Preparing to terminate ffmpeg process 799.
+2021-04-30 06:19:49,462:INFO:discord.player: ffmpeg process 799 has not terminated. Waiting to terminate...
+2021-04-30 06:19:49,466:INFO:discord.player: ffmpeg process 799 should have terminated with a return code of -9.
+2021-04-30 06:19:57,622:INFO:discord.player: Preparing to terminate ffmpeg process 806.
+2021-04-30 06:19:57,622:INFO:discord.player: ffmpeg process 806 has not terminated. Waiting to terminate...
+2021-04-30 06:19:57,626:INFO:discord.player: ffmpeg process 806 should have terminated with a return code of -9.
+2021-04-30 06:20:03,124:INFO:discord.voice_client: The voice handshake is being terminated for Channel ID 835771184565059616 (Guild ID 827394604067979324)
+2021-04-30 06:20:03,124:INFO:discord.voice_client: Disconnecting from voice normally, close code 1000.
+2021-04-30 06:43:18,734:INFO:discord.voice_client: Connecting to voice...
+2021-04-30 06:43:18,734:INFO:discord.voice_client: Starting voice handshake... (connection attempt 1)
+2021-04-30 06:43:18,984:INFO:discord.voice_client: Voice handshake complete. Endpoint found sydney446.discord.media
+2021-04-30 06:43:20,285:INFO:discord.gateway: selected the voice protocol for use (xsalsa20_poly1305_lite)
+2021-04-30 06:43:20,503:INFO:discord.gateway: received secret key for voice connection
+2021-04-30 06:46:26,856:INFO:discord.player: Preparing to terminate ffmpeg process 951.
+2021-04-30 06:46:26,857:INFO:discord.player: ffmpeg process 951 successfully terminated with return code of 0.
+2021-04-30 06:47:17,034:INFO:discord.player: Preparing to terminate ffmpeg process 977.
+2021-04-30 06:47:17,034:INFO:discord.player: ffmpeg process 977 has not terminated. Waiting to terminate...
+2021-04-30 06:47:17,044:INFO:discord.player: ffmpeg process 977 should have terminated with a return code of -9.
+2021-04-30 06:47:33,973:INFO:discord.player: Preparing to terminate ffmpeg process 971.
+2021-04-30 06:47:33,974:INFO:discord.player: ffmpeg process 971 has not terminated. Waiting to terminate...
+2021-04-30 06:47:33,978:INFO:discord.player: ffmpeg process 971 should have terminated with a return code of -9.
+2021-04-30 06:47:50,084:INFO:discord.player: Preparing to terminate ffmpeg process 996.
+2021-04-30 06:47:50,091:INFO:discord.player: ffmpeg process 996 successfully terminated with return code of -9.
+2021-04-30 06:50:09,059:INFO:discord.player: Preparing to terminate ffmpeg process 991.
+2021-04-30 06:50:09,060:INFO:discord.player: ffmpeg process 991 successfully terminated with return code of 0.
+2021-04-30 06:52:27,993:INFO:discord.player: Preparing to terminate ffmpeg process 1027.
+2021-04-30 06:52:27,994:INFO:discord.player: ffmpeg process 1027 successfully terminated with return code of 0.
+2021-04-30 06:53:29,205:INFO:discord.player: Preparing to terminate ffmpeg process 1045.
+2021-04-30 06:53:29,205:INFO:discord.player: ffmpeg process 1045 has not terminated. Waiting to terminate...
+2021-04-30 06:53:29,208:INFO:discord.player: ffmpeg process 1045 should have terminated with a return code of -9.
+2021-04-30 06:53:34,784:INFO:discord.player: Preparing to terminate ffmpeg process 1051.
+2021-04-30 06:53:34,787:INFO:discord.player: ffmpeg process 1051 has not terminated. Waiting to terminate...
+2021-04-30 06:53:34,805:INFO:discord.player: ffmpeg process 1051 should have terminated with a return code of -9.
+2021-04-30 06:56:34,810:INFO:discord.voice_client: The voice handshake is being terminated for Channel ID 835771184565059616 (Guild ID 827394604067979324)
+2021-04-30 06:56:34,810:INFO:discord.voice_client: Disconnecting from voice normally, close code 1000.

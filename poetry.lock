@@ -415,6 +415,23 @@ voice = ["PyNaCl (>=1.3.0)", "youtube-dl"]
 
 [[package]]
 category = "main"
+description = "Download lyrics and metadata from Genius.com"
+name = "lyricsgenius"
+optional = false
+python-versions = "*"
+version = "3.0.1"
+
+[package.dependencies]
+beautifulsoup4 = ">=4.6.0"
+requests = ">=2.20.0"
+
+[package.extras]
+checks = ["tox (>=3.2,<4.0)", "doc8", "flake8", "flake8-bugbear", "pygments"]
+dev = ["sphinx (>=3.3,<4.0)", "sphinx-rtd-theme", "tox (>=3.2,<4.0)", "doc8", "flake8", "flake8-bugbear", "pygments"]
+docs = ["sphinx (>=3.3,<4.0)", "sphinx-rtd-theme"]
+
+[[package]]
+category = "main"
 description = "Safely add untrusted strings to HTML/XML markup."
 name = "markupsafe"
 optional = false
@@ -642,7 +659,7 @@ python-versions = "*"
 version = "2021.4.17"
 
 [metadata]
-content-hash = "8d64798bdbf8aa87dcee3fc7b605e57917b59a470e8aac15c3660eac5a582012"
+content-hash = "6997d9a2539393b6c39262a89fcdb37f2de0b9e1036fcfb6a634d743504717d7"
 python-versions = "^3.8"
 
 [metadata.files]
@@ -888,6 +905,10 @@ jishaku = [
     {file = "jishaku-1.20.0.220-py3.8.egg", hash = "sha256:fbe6e9160df5688538becea0c32558ddccbd026cd0820cd83122c3419ec4625b"},
     {file = "jishaku-1.20.0.220-py3.9.egg", hash = "sha256:ba4cdab5eb3893b213d0aaf82e711665d6dedab3182c6c071507f22ec7f981ff"},
     {file = "jishaku-1.20.0.220.tar.gz", hash = "sha256:eb6d2e2fc9d4f89ca98d20be7487b3354ae745e0cf14e234d31df573054bcf9e"},
+]
+lyricsgenius = [
+    {file = "lyricsgenius-3.0.1-py3-none-any.whl", hash = "sha256:145df7d79e6b6ebe7ff6da9ed08c0cb43b251bb88f859339224b20e3f8399b05"},
+    {file = "lyricsgenius-3.0.1.tar.gz", hash = "sha256:83aef55ffca0b8ea69651c4b144693d1c012687a7da57f88d095b333f2e18928"},
 ]
 markupsafe = [
     {file = "MarkupSafe-1.1.1-cp27-cp27m-macosx_10_6_intel.whl", hash = "sha256:09027a7803a62ca78792ad89403b1b7a73a01c8cb65909cd876f7fcebd79b161"},
