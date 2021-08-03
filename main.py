@@ -1,20 +1,23 @@
+from replit import db
 import asyncio
 import functools
 import itertools
-import logging
 import math
 import os
 import random
 import typing
+import json
+import base64
+import requests
+import time
+import aiohttp
 
-import aioconsole
 import discord
 import qrcode
-import requests
 import youtube_dl
 from async_timeout import timeout
 from bs4 import BeautifulSoup
-from discord.ext import commands, levenshtein
+from discord.ext import commands, wizards
 from googletrans import LANGCODES, Translator
 from pretty_help import PrettyHelp
 from keepalive import keepalive
@@ -22,36 +25,35 @@ from SimpleEconomy import Seco as SimpleEconomy
 from PIL import Image
 from owotext import OwO
 from lyricsgenius import Genius
+from dislash import slash_commands
+#from sympy.sympy import *
 
 genius = Genius()
-artist = genius.search_artist("Andy Shauf", max_songs=3, sort="title")
-print(artist.songs)
 
 translator = Translator()
 
-# Logging
-logger = logging.getLogger('discord')
-logger.setLevel(logging.INFO)
-handler = logging.FileHandler(filename='log.log', encoding='utf-8', mode='w')
-handler.setFormatter(
-    logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
-logger.addHandler(handler)
 
 intents = discord.Intents.all()
-intents.presences = False
-intents.typing = False
 
 token = os.getenv('BOT_TOKEN')
 prefix = ['pyra ', 'Pyra ', 'p ', 'P ']
 bot = commands.Bot(prefix,
-                   help_command=PrettyHelp(color=discord.Color.orange()), 
+                   help_command=PrettyHelp(color=discord.Color.orange()),
                    intents=intents)
+
+slash = slash_commands.SlashClient(bot)
 
 drip = Image.open('drip.jpg')
 
-Seco = SimpleEconomy(bot,os.getenv("SimpleEconomyApiToken"),"pyrabot",def_bal=1000,def_bank=0) 
+Seco = SimpleEconomy(bot,
+                     os.getenv("SimpleEconomyApiToken"),
+                     "pyrabot",
+                     def_bal=1000,
+                     def_bank=0)
 
 uwu = OwO()
+
+
 
 # string defs
 empty = 'Empty queue.'
@@ -77,7 +79,7 @@ def checkforavraaj(ctx: commands.Context):
         bool: True if the user is AVRAAJ.
     """
     return not ctx.author.id == 682859915181817886
-                                    
+
 
 def checkml(ctx):
     """A check for the user circles.png.
@@ -96,23 +98,41 @@ def checkadmin(ctx):
 
 
 async def on_ready():
-    levenshtein.Levenshtein(bot, max_length=3)
     print('Ready')
-
-async def on_command_suggest(self, ctx: commands.Context, suggested_commands):
-    body = 'suggested commands: ' + ' '.join([f'`{command}`' for command in suggested_commands])
-    await ctx.send(body)
 
 with open('filter.txt') as f:
     messagefilter = f.read().split(', ')
     messagefilter[-1] = messagefilter[-1][:7]
 
+db['lastcounted'] = 0
+db['counter'] = 0
+bot.counter = int(db['counter'])
+try:
+    lastcounted = db['lastcounted']
+except IndexError:
+    lastcounted = 0
 
 @bot.event
 async def on_message(message: discord.Message):
+    if not message.guild:
+        await bot.process_commands(message)
     if message.author == bot.user:
         return
 
+    global lastcounted
+    if message.content.isnumeric() and message.channel.id == 843250290249695233:
+        if message.author.id != lastcounted:
+            if message.content == str(bot.counter):
+                await message.add_reaction('✅')
+                bot.counter += 1
+                lastcounted = message.author.id
+                db['counter'] = str(bot.counter)
+                db['lastcounted'] = str(lastcounted)
+                await message.channel.edit(topic=f'Counting with PyraBot! Current number: {bot.counter}')
+            else:
+                await message.reply(f'nope wrong number! the next number is {bot.counter}')
+        else:
+            await message.reply(f'you can\'t count two numbers in a row! the next number is {bot.counter}')
     message_content = message.content.strip().lower()
     if message.guild.id == 82739460435345345979324:
         for bad_word in messagefilter:
@@ -121,6 +141,12 @@ async def on_message(message: discord.Message):
                     "{}, your message has been censored.".format(
                         message.author.mention))
                 await bot.delete(message)
+                
+    if message.guild.id == 811882178752413728 and message.channel.id == 848033629925801984:
+        if any([char.lower() != 'h' for char in message.content]):
+            await message.delete()
+            await message.author.send('h only in the h channel sorry for dm lol')
+            
 
     await bot.process_commands(message)
 
@@ -246,22 +272,33 @@ class YTDLSource(discord.PCMVolumeTransformer):
                    data=info)
 
     @classmethod
-    async def search_source(self, ctx: commands.Context, search: str, *, loop: asyncio.BaseEventLoop = None, bot):
+    async def search_source(self,
+                            ctx: commands.Context,
+                            search: str,
+                            *,
+                            loop: asyncio.BaseEventLoop = None,
+                            bot):
         self.bot = bot
         channel = ctx.channel
         loop = loop or asyncio.get_event_loop()
 
         self.search_query = '%s%s:%s' % ('ytsearch', 10, ''.join(search))
 
-        partial = functools.partial(self.ytdl.extract_info, self.search_query, download=False, process=False)
+        partial = functools.partial(self.ytdl.extract_info,
+                                    self.search_query,
+                                    download=False,
+                                    process=False)
         info = await loop.run_in_executor(None, partial)
 
         self.search = {}
         self.search["title"] = f'Search results for:\n**{search}**'
         self.search["type"] = 'rich'
         self.search["color"] = 7506394
-        self.search["author"] = {'name': f'{ctx.author.name}', 'url': f'{ctx.author.avatar_url}',
-                                'icon_url': f'{ctx.author.avatar_url}'}
+        self.search["author"] = {
+            'name': f'{ctx.author.name}',
+            'url': f'{ctx.author.avatar_url}',
+            'icon_url': f'{ctx.author.avatar_url}'
+        }
 
         lst = []
         count = 0
@@ -274,14 +311,16 @@ class YTDLSource(discord.PCMVolumeTransformer):
             count += 1
             e_list.append(e)
 
-        lst.append('\n**Type a number to make a choice, Type `cancel` to exit**')
+        lst.append(
+            '\n**Type a number to make a choice, Type `cancel` to exit**')
         self.search["description"] = "\n".join(lst)
 
         em = discord.Embed.from_dict(self.search)
         await ctx.send(embed=em, delete_after=45.0)
 
         def check(msg):
-            return msg.content.isdigit() == True and msg.channel == channel or msg.content == 'cancel' or msg.content == 'Cancel'
+            return msg.content.isdigit(
+            ) == True and msg.channel == channel or msg.content == 'cancel' or msg.content == 'Cancel'
 
         try:
             m = await self.bot.wait_for('message', check=check, timeout=45.0)
@@ -296,11 +335,16 @@ class YTDLSource(discord.PCMVolumeTransformer):
                     for key, value in info.items():
                         if key == 'entries':
                             """data = value[sel - 1]"""
-                            VId = e_list[sel-1]['id']
+                            VId = e_list[sel - 1]['id']
                             VUrl = 'https://www.youtube.com/watch?v=%s' % (VId)
-                            partial = functools.partial(self.ytdl.extract_info, VUrl, download=False)
+                            partial = functools.partial(self.ytdl.extract_info,
+                                                        VUrl,
+                                                        download=False)
                             data = await loop.run_in_executor(None, partial)
-                    rtrn = self(ctx, discord.FFmpegPCMAudio(data['url'], **self.FFMPEG_OPTIONS), data=data)
+                    rtrn = self(ctx,
+                                discord.FFmpegPCMAudio(data['url'],
+                                                       **self.FFMPEG_OPTIONS),
+                                data=data)
                 else:
                     rtrn = 'sel_invalid'
             elif m.content == 'cancel':
@@ -309,7 +353,6 @@ class YTDLSource(discord.PCMVolumeTransformer):
                 rtrn = 'sel_invalid'
 
         return rtrn
-
 
     @staticmethod
     def parse_duration(duration: int):
@@ -436,20 +479,22 @@ class VoiceState:
                         self.current = await self.songs.get()
                 except asyncio.TimeoutError:
                     self.bot.loop.create_task(self.stop())
-                    await self._ctx.send("I left the voice channel due to inactivity!")
                     self.exists = False
                     self.voice.leave()
                     return
-                
+
                 self.current.source.volume = self._volume
                 self.voice.play(self.current.source, after=self.play_next_song)
-                await self.current.source.channel.send(embed=self.current.create_embed())
-            
+                await self.current.source.channel.send(
+                    embed=self.current.create_embed())
+
             #If the song is looped
             elif self.loop == True:
-                self.now = discord.FFmpegPCMAudio(self.current.source.stream_url, **YTDLSource.FFMPEG_OPTIONS)
+                self.now = discord.FFmpegPCMAudio(
+                    self.current.source.stream_url,
+                    **YTDLSource.FFMPEG_OPTIONS)
                 self.voice.play(self.now, after=self.play_next_song)
-            
+
             await self.next.wait()
 
     def play_next_song(self, error=None):
@@ -471,6 +516,88 @@ class VoiceState:
             await self.voice.disconnect()
             self.voice = None
 
+class EmbedBuilderWizard(wizards.Wizard):
+    def __init__(self):
+        self.result = {}
+        super().__init__(cleanup_after=False, timeout=30.0)
+
+    # register an action, so users can type "stop" or "cancel" to stop
+    # the wizard
+    @wizards.action("stop", "cancel")
+    async def cancel_wizard(self, message):
+        await self.send("Wizard Cancelled.")
+        await self.stop(wizards.StopReason.CANCELLED)
+
+    @wizards.step(
+        "What should the embed title be?",
+        position=1
+    )
+    async def embed_title(self, message):
+        self.result["title"] = message.content
+
+    @wizards.step(
+        "What should the embed description be?",
+        timeout=180.0,  # override the default timeout of 30
+        position=2,
+    )
+    async def embed_description(self, message):
+        length = len(message.content)
+        if length > 2000:
+            await self.send(
+                f"That description is {length} chars, but the maximum is 2000."
+            )
+            return await self.do_step(self.embed_description)  # redo the step
+        self.result["description"] = message.content
+
+    @wizards.step(
+        "Type 1 to add a field, or 2 to move on.",
+        position=3,
+    )
+    async def embed_fields(self, message):
+        self.result.setdefault("fields", [])
+        if message.content == "2":
+            pass  # move on to the next step
+        elif message.content == "1":
+            field_name = await self.do_step(self.embed_field_name)
+            field_value = await self.do_step(self.embed_field_value)
+            field_inline = await self.do_step(self.embed_field_inline)
+            self.result["fields"].append(
+                (field_name, field_value, field_inline)
+            )
+
+            # repeat the step, so users can add multiple fields
+            return await self.do_step(self.embed_fields)
+        else:
+            await self.send("Please choose 1 or 2.")
+            return await self.do_step(self.embed_fields)
+
+    @wizards.step(
+        "What should the field name be?",
+        call_internally=False,
+    )
+    async def embed_field_name(self, message):
+        return message.content
+
+    @wizards.step(
+        "What should the field description be?",
+        call_internally=False,
+    )
+    async def embed_field_value(self, message):
+        return message.content
+
+    @wizards.step(
+        "Should the field be inline?",
+        call_internally=False,
+    )
+    async def embed_field_inline(self, message):
+        if message.content.lower().startswith("y"):
+            return True
+        elif message.content.lower().startswith("n"):
+            return False
+        else:
+            await self.send("Please choose yes or no.")
+            return await self.do_step(self.embed_field_inline)
+
 
 class Music(commands.Cog):
     """A category for commands related to playing music."""
@@ -490,18 +617,8 @@ class Music(commands.Cog):
         for state in self.voice_states.values():
             self.bot.loop.create_task(state.stop())
 
-    def cog_check(self, ctx: commands.Context):
-        if not ctx.guild:
-            raise commands.NoPrivateMessage(
-                'This command can\'t be used in DM channels.')
-        return True
-
     async def cog_before_invoke(self, ctx: commands.Context):
         ctx.voice_state = self.get_voice_state(ctx)
-
-    async def cog_command_error(self, ctx: commands.Context,
-                                error: commands.CommandError):
-        await ctx.send('An error occurred: {}'.format(str(error)))
 
     @commands.command(name='join', invoke_without_subcommand=True)
     async def _join(self, ctx: commands.Context):
@@ -678,7 +795,7 @@ class Music(commands.Cog):
         # Inverse boolean value to loop and unloop.
         ctx.voice_state.loop = not ctx.voice_state.loop
         await ctx.message.add_reaction('✅')
-        await ctx.send(f'Loop is now {ctx.voice_state.loop}.')
+        await ctx.send(f'Loop is now {ctx.voice_state.loop} for current song.')
 
     @commands.command(name='play')
     async def _play(self, ctx: commands.Context, *, search: str):
@@ -718,9 +835,14 @@ class Music(commands.Cog):
         """
         async with ctx.typing():
             try:
-                source = await YTDLSource.search_source(ctx, search, loop=self.bot.loop, bot=self.bot)
+                source = await YTDLSource.search_source(ctx,
+                                                        search,
+                                                        loop=self.bot.loop,
+                                                        bot=self.bot)
             except YTDLError as e:
-                await ctx.send('An error occurred while processing this request: {}'.format(str(e)))
+                await ctx.send(
+                    'An error occurred while processing this request: {}'.
+                    format(str(e)))
             else:
                 if source == 'sel_invalid':
                     await ctx.send('Invalid selection')
@@ -735,6 +857,14 @@ class Music(commands.Cog):
                     song = Song(source)
                     await ctx.voice_state.songs.put(song)
                     await ctx.send('Enqueued {}'.format(str(source)))
+
+    @commands.command()
+    async def lyrics(self, ctx: commands.Context, *, query: str):
+        '''Searches Genius for lyrics.'''
+        lyrics = genius.search_song(title=query).lyrics
+        for chunk in [lyrics[i:i + 2000] for i in range(0, len(lyrics), 2000)]:
+            await ctx.send(embed=discord.Embed(
+                title=query, description=chunk, color=discord.Colour.red()))
 
     @_join.before_invoke
     @_play.before_invoke
@@ -752,40 +882,54 @@ class General(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    async def cog_command_error(self, ctx: commands.Context,
-                                error: commands.CommandError):
-        await ctx.send(error.format(str(error)))
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx: commands.Context, error):
+        if isinstance(error, commands.CommandOnCooldown):
+            await ctx.message.reply(f'That command is on cooldown for {error.retry_after:.2f}s!')
+            return
 
-    def cog_check(self, ctx: commands.Context):
-        if not ctx.guild:
-            raise commands.NoPrivateMessage(dm)
-        return True
+        base64_error = base64.b64encode(str(error).encode('ascii')).decode('ascii')
+        await ctx.message.reply(f'There was an error running that command!\n`{str(error)}`\nError code: `{base64_error}`')
 
     @commands.command()
     async def hello(self, ctx: commands.Context, *args):
         '''Say hello.'''
-        await ctx.message.channel.send(
-            'Hello {0.author.mention}! Did you know that @ML-10 is my creator?'
+        await ctx.message.reply(
+            'Hello {0.author.mention}! Did you know that @circles.png is my creator?'
             .format(ctx.message))
 
     @commands.command()
-    async def solve(self, ctx: commands.Context, equation):
+    async def solve(self, ctx: commands.Context, *, equation):
         '''Evaluate a Python expression.'''
-        await ctx.message.channel.send('The answer to: "' + equation +
-                                       '" is ' + str(eval(equation)))
+        await ctx.message.channel.send('The answer to: "' + equation + '" is ')
+        for chunk in [
+                str(eval(equation))[i:i + 2000] for i in range(0, len(str(eval(equation))), 2000)
+        ]:
+            await ctx.send(chunk)
+        
 
-    @commands.command()
-    async def translate(self, ctx: commands.Context, text: str, lang: str):
-        """Detects language and translates text to another language."""
-        await ctx.send(
-            'Translated: ' +
-            translator.translate(text, dest=LANGCODES[lang.lower()]).text)
+    @commands.command(aliases=['t', 'trans'])
+    async def translate(self, ctx: commands.Context, source: str,
+                        destination: str, *, text: str):
+        """Translates text to another language."""
+        try:
+            await ctx.send(embed=discord.Embed(
+                title=f'Translated from {source} to {destination}', 
+                description=translator.translate(text,
+                                     dest=LANGCODES[destination.lower()],
+                                     src=LANGCODES[source.lower()]).text,
+                footer='powered by Google Translate',
+                color=discord.Color.red()
+                ))
+               
+        except KeyError as k:
+            await ctx.send(f'Language not found: ({k})')
 
-    @commands.command()
-    async def translatehelp(self, ctx):
+    @commands.command(aliases=['th', 'transhelp', 'thelp'])
+    async def translatehelp(self, ctx: commands.context):
         "Returns all languages availiable to translate."
 
-        await ctx.send(str(LANGCODES))
+        await ctx.send(str(LANGCODES.keys()))
 
     @commands.command()
     async def drunk(self, ctx: commands.Context, *, text: str):
@@ -851,9 +995,17 @@ class General(commands.Cog):
                           member.guild.name + '" FOR ' + reason)
 
     @commands.command()
-    async def ping(self, ctx):
+    async def ping(self, ctx: commands.Context):
         "Returns the bot's latency in milliseconds."
         await ctx.send('Pong! {0}ms'.format(round(bot.latency, 5) * 1000))
+
+    @slash.command(
+        name="ping",
+        description="Returns the bot's latency in milliseconds.",
+    )
+    async def _ping(self, inter):
+        "Returns the bot's latency in milliseconds."
+        await inter.reply('Pong! {0}ms'.format(round(bot.latency, 5) * 1000))
 
     @commands.command(aliases=['vote'])
     async def poll(self, ctx: commands.Context, *, statement):
@@ -915,18 +1067,6 @@ class General(commands.Cog):
             await ctx.send(random.choice(f.readlines()))
 
     @commands.command()
-    async def cbt(self, ctx: commands.Context):
-        """Prints the whole CBT article on Wikipedia."""
-        text = requests.get(
-            'https://en.wikipedia.org/wiki/Cock_and_ball_torture')
-        soup = BeautifulSoup(text.content, 'html.parser')
-
-        for chunk in [
-                soup.text[i:i + 2000] for i in range(0, len(soup.text), 2000)
-        ]:
-            await ctx.send(chunk)
-
-    @commands.command()
     async def drip(self, ctx: commands.Context):
         '''Makes an image of you with drip.'''
         await ctx.author.avatar_url.save('avatar.png')
@@ -939,15 +1079,114 @@ class General(commands.Cog):
     @commands.command(aliases=['owo', 'uwu', 'uwuify'])
     async def owoify(self, ctx: commands.Context, *, text: str):
         '''OwOifies text.'''
-        await ctx.send(embed=discord.Embed(title='OwO what\'s this?', description=uwu.whatsthis(text), color=discord.Colour.red()))
+        await ctx.send(embed=discord.Embed(title='OwO what\'s this?',
+                                           description=uwu.whatsthis(text),
+                                           color=discord.Colour.red()))
+
+    @commands.command()
+    async def b(self, ctx: commands.Context, *, text: str):
+        ''':b:ifies your text.'''
+        t = text.strip().split(' ')
+        for i, word in enumerate(t):
+            word = list(word)
+            word[0] = ':b:'
+            t[i] = ''.join(word)
+
+        await ctx.send(embed=discord.Embed(
+            title=':b:', description=' '.join(t), color=discord.Color.red()))
+
+    @slash.command(
+        name="dice",
+        description="Rolls a dice with a given number of sides.",
+    )
+    async def dice(self, ctx: commands.Context, number: int):
+        "Rolls a dice with a given number of sides."
+        await ctx.send(f'Rolled dice with {number} sides: **{random.randint(1, number)}**')
+
+    @commands.command()
+    async def invite(self, ctx: commands.Context):
+        "Generates a link to invite the bot to your own server!"
+        await ctx.send(embed=discord.Embed(title='Invite link!', description='https://discord.com/api/oauth2/authorize?client_id=575622700001918976&permissions=8&scope=bot%20applications.commands'))
+
+    @commands.command(aliases=['cb', 'chat'])
+    async def chatbot(self, ctx: commands.Context):
+        "Talk to an AI!"
+
+        url = "http://api.brainshop.ai/get"
+        headers = {'x-rapidapi-host': 'acobot-brainshop-ai-v1.p.rapidapi.com'}
+
+        def check(message):
+            return message.channel == ctx.message.channel and message.author == ctx.author
+
+        await ctx.message.reply('Hi! Talk about anything, or say \'quit\' to quit.')
+
+        text = ''
+        while text != 'quit':
+            query = await bot.wait_for('message', check=check)
+            text = query.content.strip()
+            querystring = {"bid":"157380","key": os.getenv('BRAINSHOP_KEY'), "uid":str(ctx.author.display_name), "msg": text}
+            response = requests.request("GET", url, headers=headers, params=querystring) 
+            await query.reply(json.loads(response.text)['cnt'])
+
+        await ctx.message.reply('Anyways, bye!')
+
+    @commands.command(aliases=['createembed', 'emb'])
+    async def embed(self, ctx: commands.Context):
+        wizard = EmbedBuilderWizard()
+        await wizard.start(ctx)
+        result = wizard.result
+
+        embed = discord.Embed(
+            title=result["title"],
+            description=result["description"],
+        )
+        for name, value, inline in result["fields"]:
+            embed.add_field(name=name, value=value, inline=inline)
+
+        await ctx.send(embed=embed)
+
+    @commands.command(aliases=['corona', 'coronavirus', 'covid19'])
+    async def covid(self, ctx: commands.Context, country: str):
+        'COVID-19 stats for a given country.'
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"https://corona.lmao.ninja/v2/countries/{country}") as resp:
+                    data = await resp.json()
+        except Exception:
+            return None
+
+        tme = round(time.time())
+        tme -= data['updated']
+        hrs = int(tme / 3600)
+        tme = tme % 3600
+        min = int(tme / 60)
+        tme = tme % 60
+        hrs = max(hrs, 0)
+        min = max(min, 0)
+        update = f"Updated {hrs} hours {min} minutes and {tme} seconds ago"
+        embed = discord.Embed(color=discord.Colour.red())
+        embed.set_author(name=f"Data for the country {country}", icon_url=data['countryInfo']['flag'])
+        embed.set_thumbnail(url=data['countryInfo']['flag'])
+        embed.add_field(name="Total Cases", value=f"{data['cases']} (+{data['todayCases']})", inline=False)
+        embed.add_field(name="Total Deaths", value=f"{data['deaths']} (+{data['todayDeaths']})", inline=False)
+        embed.add_field(name="Total Recoveries", value=f"{data['recovered']}", inline=False)
+        embed.add_field(name="Active", value=str(data['active']), inline=True)
+        embed.add_field(name="Critical", value=str(data['critical']), inline=True)
+        embed.add_field(name="Tests Conducted", value=str(data['tests']), inline=True)
+        embed.set_footer(text=update)
+
+        await ctx.send(embed=embed)
 
 class Currency(commands.Cog):
     '''A category for commands related to currency.'''
-    @commands.command()
+    @commands.command(aliases=['rich'])
     async def top(self, ctx: commands.Context):
         '''Shows the top people on the leaderboard.'''
-        lb = await Seco.leaderboard("balance")
-        print(lb)
+        lb = []
+        for user in await Seco.leaderboard("balance"):
+            if ctx.guild.get_member(int(user['userid'])) is not None:
+                lb.append(user)
+
         send_text = ""
         for person in lb:
             userid = person['userid']
@@ -962,44 +1201,71 @@ class Currency(commands.Cog):
                                 color=discord.Colour.red()))
 
     @commands.command(aliases=['balance'])
-    async def bal(self, ctx: commands.Context, user: typing.Optional[discord.User]):
+    async def bal(self, ctx: commands.Context,
+                  user: typing.Optional[discord.User]):
         '''Shows your current balance.'''
         balance = await Seco.get_balance(ctx.author.id if not user else user)
-        await ctx.send(embed=discord.Embed(title='Balance', description=f'{ctx.author.mention if not user else user.mention}\'s balance is {str(balance)}{currency_unit}.', color=discord.Colour.red()))
+        bank = await Seco.get_bank(ctx.author.id if not user else user)
+        await ctx.send(embed=discord.Embed(
+            title=ctx.author.display_name if not user else user.display_name,
+            description=f'Balance: {str(balance)}{currency_unit}\nBank: {str(bank)}{currency_unit}',
+            color=discord.Colour.red()))
 
     @commands.command()
-    async def give(self, ctx: commands.Context, member: discord.Member, amount: int):
+    async def give(self, ctx: commands.Context, member: discord.Member,
+                   amount: int):
         '''Gives an amount of money to another member.'''
         if amount <= 0:
             await ctx.send('You can\'t send negative amounts of money!')
         elif await Seco.get_balance(ctx.author.id) < amount:
-            await ctx.send('It looks like you\'re trying to send that user more money than you have!')
+            await ctx.send(
+                'It looks like you\'re trying to send that user more money than you have!'
+            )
         else:
-            await Seco.transfer_balance(ctx.author.id,
-                                        member.id,
-                                        amount)
-            await ctx.send(f'Added {amount} to {member.display_name}\'s balance')
+            await Seco.transfer_balance(ctx.author.id, member.id, amount)
+            await ctx.send(
+                f'Added {amount} to {member.display_name}\'s balance')
 
+    @commands.command(aliases=['dep'])
+    async def deposit(self, ctx: commands.Context, amount: int=0):
+        balance = await Seco.get_balance(ctx.author.id)
 
-async def background_task():
-    await bot.wait_until_ready()
-    while not bot.is_closed():
-        try:
-            console_input = await aioconsole.ainput("shell> ")
-            args = console_input.split(' ')
-            if args[0] == 'exec':
-                exec(args[1])
-            elif args[0] == 'say':
-                await discord.utils.get(bot.get_guild(int(
-                    args[1])).text_channels,
-                                        name=args[2]).send(' '.join(args[3:]))
-            else:
-                print('Command not found')
-        except Exception as e:
-            print(e)
+        if balance < amount:
+            await ctx.send('You don\'t have that much money!')
+            return
+        if amount < 0:
+            await ctx.send('You can\'t deposit negative money!')
+            return
 
+        await Seco.remove_balance(ctx.author.id, amount)
+        await Seco.add_bank(ctx.author.id, amount)
+        await ctx.message.reply(f'Deposited {amount}{currency_unit}.')
+        
+    @commands.command(aliases=['with'])
+    async def withdraw(self, ctx: commands.Context, amount: int=0):
+        bank = await Seco.get_bank(ctx.author.id)
 
-bot.loop.create_task(background_task())
+        if bank < amount:
+            await ctx.message.reply('You don\'t have that much money!')
+            return
+        if amount < 0:
+            await ctx.message.reply('You can\'t withdraw negative money!')
+            return
+
+        await Seco.add_balance(ctx.author.id, amount)
+        await Seco.remove_bank(ctx.author.id, amount)
+        await ctx.message.reply(f'Withdrew {amount}{currency_unit}.')
+
+    @commands.cooldown(1, 86400, commands.BucketType.user)
+    @commands.command()
+    async def daily(self, ctx: commands.Context):
+        await Seco.add_balance(ctx.author.id, 1000)
+        await ctx.message.reply(embed=discord.Embed(
+            title='You got a daily bonus!',
+            description=f'1000{currency_unit} added to your balance!',
+            color=discord.Color.red()
+        ))
+
 bot.add_cog(Music(bot))
 bot.add_cog(General(bot))
 bot.add_cog(Currency(bot))
