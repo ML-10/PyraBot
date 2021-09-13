@@ -11,22 +11,26 @@ import base64
 import requests
 import time
 import aiohttp
+from decimal import Decimal
 
+import psutil
 import discord
 import qrcode
 import youtube_dl
 from async_timeout import timeout
 from bs4 import BeautifulSoup
-from discord.ext import commands, wizards
+from discord.ext import commands, wizards, tasks
 from googletrans import LANGCODES, Translator
 from pretty_help import PrettyHelp
 from keepalive import keepalive
-from SimpleEconomy import Seco as SimpleEconomy
 from PIL import Image
+import PIL.ImageFont as IFont
+import PIL.ImageDraw as IDraw
 from owotext import OwO
 from lyricsgenius import Genius
 from dislash import slash_commands
-#from sympy.sympy import *
+import emoji
+import unicodedata
 
 genius = Genius()
 
@@ -36,20 +40,14 @@ translator = Translator()
 intents = discord.Intents.all()
 
 token = os.getenv('BOT_TOKEN')
-prefix = ['pyra ', 'Pyra ', 'p ', 'P ']
+prefix = 'p '
 bot = commands.Bot(prefix,
-                   help_command=PrettyHelp(color=discord.Color.orange()),
+                   help_command=PrettyHelp(color=discord.Colour.red()),
                    intents=intents)
 
 slash = slash_commands.SlashClient(bot)
 
 drip = Image.open('drip.jpg')
-
-Seco = SimpleEconomy(bot,
-                     os.getenv("SimpleEconomyApiToken"),
-                     "pyrabot",
-                     def_bal=1000,
-                     def_bank=0)
 
 uwu = OwO()
 
@@ -68,7 +66,7 @@ youtube_dl.utils.bug_reports_message = lambda: ''
 
 # checks
 
-
+@bot.check
 def checkforavraaj(ctx: commands.Context):
     """A check for the user AVRAAJ.
 
@@ -104,8 +102,6 @@ with open('filter.txt') as f:
     messagefilter = f.read().split(', ')
     messagefilter[-1] = messagefilter[-1][:7]
 
-db['lastcounted'] = 0
-db['counter'] = 0
 bot.counter = int(db['counter'])
 try:
     lastcounted = db['lastcounted']
@@ -120,9 +116,9 @@ async def on_message(message: discord.Message):
         return
 
     global lastcounted
-    if message.content.isnumeric() and message.channel.id == 843250290249695233:
-        if message.author.id != lastcounted:
-            if message.content == str(bot.counter):
+    try:
+        if message.channel.id == 843250290249695233 and str(int(eval(message.content))) == str(bot.counter):
+            if message.author.id != lastcounted:
                 await message.add_reaction('✅')
                 bot.counter += 1
                 lastcounted = message.author.id
@@ -130,25 +126,30 @@ async def on_message(message: discord.Message):
                 db['lastcounted'] = str(lastcounted)
                 await message.channel.edit(topic=f'Counting with PyraBot! Current number: {bot.counter}')
             else:
-                await message.reply(f'nope wrong number! the next number is {bot.counter}')
-        else:
-            await message.reply(f'you can\'t count two numbers in a row! the next number is {bot.counter}')
+                await message.reply(f'you can\'t count two numbers in a row! the next number is {bot.counter}')
+    except:
+        pass
     message_content = message.content.strip().lower()
-    if message.guild.id == 82739460435345345979324:
+    if message.guild.id in [82739460435345345979324]:
         for bad_word in messagefilter:
             if bad_word in message_content:
                 await message.channel.send(
                     "{}, your message has been censored.".format(
                         message.author.mention))
-                await bot.delete(message)
-                
-    if message.guild.id == 811882178752413728 and message.channel.id == 848033629925801984:
-        if any([char.lower() != 'h' for char in message.content]):
-            await message.delete()
-            await message.author.send('h only in the h channel sorry for dm lol')
-            
+                await message.delete()
 
     await bot.process_commands(message)
+
+snipe_message_author = {}
+snipe_message_content = {}
+
+@bot.event
+async def on_message_delete(message: discord.Message):
+    snipe_message_author[message.channel.id] = f"**{message.author}** [{message.author.display_name}]"
+    snipe_message_content[message.channel.id] = message.content
+    await asyncio.sleep(3600)
+    del snipe_message_author[message.channel.id]
+    del snipe_message_content[message.channel.id]
 
 
 class VoiceError(Exception):
@@ -384,7 +385,7 @@ class Song:
         embed = (discord.Embed(
             title='Now playing',
             description='```css\n{0.source.title}\n```'.format(self),
-            color=discord.Color.blurple()).add_field(
+            colour=discord.Colour.red()).add_field(
                 name='Duration', value=self.source.duration).add_field(
                     name='Requested by',
                     value=self.requester.mention).add_field(
@@ -864,7 +865,7 @@ class Music(commands.Cog):
         lyrics = genius.search_song(title=query).lyrics
         for chunk in [lyrics[i:i + 2000] for i in range(0, len(lyrics), 2000)]:
             await ctx.send(embed=discord.Embed(
-                title=query, description=chunk, color=discord.Colour.red()))
+                title=query, description=chunk, colour=discord.Colour.red()))
 
     @_join.before_invoke
     @_play.before_invoke
@@ -881,6 +882,7 @@ class General(commands.Cog):
     """A category for commands that don't fit into the other categories."""
     def __init__(self, bot):
         self.bot = bot
+        self.guild_count.start()
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx: commands.Context, error):
@@ -891,24 +893,17 @@ class General(commands.Cog):
         base64_error = base64.b64encode(str(error).encode('ascii')).decode('ascii')
         await ctx.message.reply(f'There was an error running that command!\n`{str(error)}`\nError code: `{base64_error}`')
 
+    def cog_unload(self):
+        self.guild_count.cancel()
+
     @commands.command()
     async def hello(self, ctx: commands.Context, *args):
         '''Say hello.'''
         await ctx.message.reply(
             'Hello {0.author.mention}! Did you know that @circles.png is my creator?'
             .format(ctx.message))
-
-    @commands.command()
-    async def solve(self, ctx: commands.Context, *, equation):
-        '''Evaluate a Python expression.'''
-        await ctx.message.channel.send('The answer to: "' + equation + '" is ')
-        for chunk in [
-                str(eval(equation))[i:i + 2000] for i in range(0, len(str(eval(equation))), 2000)
-        ]:
-            await ctx.send(chunk)
         
-
-    @commands.command(aliases=['t', 'trans'])
+    @commands.command(aliases=['tr', 'trans'])
     async def translate(self, ctx: commands.Context, source: str,
                         destination: str, *, text: str):
         """Translates text to another language."""
@@ -919,7 +914,7 @@ class General(commands.Cog):
                                      dest=LANGCODES[destination.lower()],
                                      src=LANGCODES[source.lower()]).text,
                 footer='powered by Google Translate',
-                color=discord.Color.red()
+                colour=discord.Colour.red()
                 ))
                
         except KeyError as k:
@@ -942,15 +937,6 @@ class General(commands.Cog):
                     if text[text.index(letter)].islower() \
                     else text[text.index(letter)].lower()
         await ctx.send('Drunk: "' + ''.join(text) + '"')
-
-    @commands.is_owner()
-    @commands.command()
-    async def restart(self, ctx: commands.Context):
-        """Restarts the bot. (can only be stopped by <@262120465525506049>)"""
-        await ctx.send('Logging out...')
-        await bot.logout()
-        await ctx.send('Logging in...')
-        await bot.login(token)
 
     @commands.is_owner()
     @commands.command()
@@ -997,7 +983,7 @@ class General(commands.Cog):
     @commands.command()
     async def ping(self, ctx: commands.Context):
         "Returns the bot's latency in milliseconds."
-        await ctx.send('Pong! {0}ms'.format(round(bot.latency, 5) * 1000))
+        await ctx.message.reply(f'Pong! {round(bot.latency * 1000, abs(Decimal(bot.latency * 1000).adjusted())+1)}ms')
 
     @slash.command(
         name="ping",
@@ -1008,15 +994,30 @@ class General(commands.Cog):
         await inter.reply('Pong! {0}ms'.format(round(bot.latency, 5) * 1000))
 
     @commands.command(aliases=['vote'])
-    async def poll(self, ctx: commands.Context, *, statement):
-        "Starts a poll."
-        embed = discord.Embed(title="Vote! [" + statement + "]",
-                              description=statement,
-                              color=discord.Colour.blurple())
-        embed.set_footer(text="from PyraBot")
+    async def poll(self, ctx: commands.Context, *, inp: str):
+        "Starts a poll with emojis and a topic."
+        inp = list(inp)
+        emojis = ''
+        for i, char in enumerate(inp):
+            if char in emoji.UNICODE_EMOJI['en']:
+                emojis += char
+                inp.pop(i)
+
+        statement = ''.join(inp).strip()
+
+        embed = discord.Embed(
+            title="Vote! [" + statement + "]",
+            description=statement,
+            colour=discord.Colour.red()
+        )
+        embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar_url)
         message = await ctx.send(embed=embed)
-        await message.add_reaction('👍')
-        await message.add_reaction('👎')
+        for r in emoji.emojize(emojis).replace(' ', '').strip():
+            try:
+                await message.add_reaction(r)
+            except discord.HTTPException:
+                await ctx.send(f'Emoji not found: {unicodedata.name(r)} (\\u{hex(ord(r))})')
+
         await ctx.message.delete()
 
     @commands.command()
@@ -1038,12 +1039,8 @@ class General(commands.Cog):
             await ctx.send(chunk)
 
     @commands.command()
-    async def spam(self, ctx: commands.Context):
-        for i in range(10):
-            await bot.get_channel(767488243263864842).send('spam' * 10)
-
-    @commands.command()
     async def qrcode(self, ctx: commands.Context, *, data: str):
+        "Generates a QR code given some data."
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_H,
@@ -1062,7 +1059,7 @@ class General(commands.Cog):
 
     @commands.command()
     async def roast(self, ctx: commands.Context):
-        """Generates a random roast, from https://parade.com/1105374/marynliles/good-comebacks/"""
+        """Generates a random roast."""
         with open('roasts.txt') as f:
             await ctx.send(random.choice(f.readlines()))
 
@@ -1079,9 +1076,14 @@ class General(commands.Cog):
     @commands.command(aliases=['owo', 'uwu', 'uwuify'])
     async def owoify(self, ctx: commands.Context, *, text: str):
         '''OwOifies text.'''
-        await ctx.send(embed=discord.Embed(title='OwO what\'s this?',
-                                           description=uwu.whatsthis(text),
-                                           color=discord.Colour.red()))
+        await ctx.send(
+            embed=discord.Embed(
+                title='uwu',
+                description=uwu.whatsthis(text),
+                colour=discord.Colour.red(),
+                footer='powered by owotext'
+            ).set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar_url)
+        )
 
     @commands.command()
     async def b(self, ctx: commands.Context, *, text: str):
@@ -1093,7 +1095,7 @@ class General(commands.Cog):
             t[i] = ''.join(word)
 
         await ctx.send(embed=discord.Embed(
-            title=':b:', description=' '.join(t), color=discord.Color.red()))
+            title=':b:', description=' '.join(t), colour=discord.Colour.red()))
 
     @slash.command(
         name="dice",
@@ -1132,6 +1134,7 @@ class General(commands.Cog):
 
     @commands.command(aliases=['createembed', 'emb'])
     async def embed(self, ctx: commands.Context):
+        "Build an embed using a wizard."
         wizard = EmbedBuilderWizard()
         await wizard.start(ctx)
         result = wizard.result
@@ -1164,7 +1167,7 @@ class General(commands.Cog):
         hrs = max(hrs, 0)
         min = max(min, 0)
         update = f"Updated {hrs} hours {min} minutes and {tme} seconds ago"
-        embed = discord.Embed(color=discord.Colour.red())
+        embed = discord.Embed(colour=discord.Colour.red())
         embed.set_author(name=f"Data for the country {country}", icon_url=data['countryInfo']['flag'])
         embed.set_thumbnail(url=data['countryInfo']['flag'])
         embed.add_field(name="Total Cases", value=f"{data['cases']} (+{data['todayCases']})", inline=False)
@@ -1177,99 +1180,113 @@ class General(commands.Cog):
 
         await ctx.send(embed=embed)
 
-class Currency(commands.Cog):
-    '''A category for commands related to currency.'''
-    @commands.command(aliases=['rich'])
-    async def top(self, ctx: commands.Context):
-        '''Shows the top people on the leaderboard.'''
-        lb = []
-        for user in await Seco.leaderboard("balance"):
-            if ctx.guild.get_member(int(user['userid'])) is not None:
-                lb.append(user)
-
-        send_text = ""
-        for person in lb:
-            userid = person['userid']
-            balance = person['balance']
-            place = lb.index(person) + 1
-            print(userid)
-            user = await bot.fetch_user(int(userid))
-            send_text += f'#{place}: {user.display_name}: {balance}{currency_unit}\n'
-        await ctx.send(
-            embed=discord.Embed(title=f"Top users in {ctx.author.guild.name}",
-                                description=send_text,
-                                color=discord.Colour.red()))
-
-    @commands.command(aliases=['balance'])
-    async def bal(self, ctx: commands.Context,
-                  user: typing.Optional[discord.User]):
-        '''Shows your current balance.'''
-        balance = await Seco.get_balance(ctx.author.id if not user else user)
-        bank = await Seco.get_bank(ctx.author.id if not user else user)
-        await ctx.send(embed=discord.Embed(
-            title=ctx.author.display_name if not user else user.display_name,
-            description=f'Balance: {str(balance)}{currency_unit}\nBank: {str(bank)}{currency_unit}',
-            color=discord.Colour.red()))
-
     @commands.command()
-    async def give(self, ctx: commands.Context, member: discord.Member,
-                   amount: int):
-        '''Gives an amount of money to another member.'''
-        if amount <= 0:
-            await ctx.send('You can\'t send negative amounts of money!')
-        elif await Seco.get_balance(ctx.author.id) < amount:
-            await ctx.send(
-                'It looks like you\'re trying to send that user more money than you have!'
+    async def snipe(self, ctx: commands.Context):
+        "Shows the last deleted message in the last 1 hour."
+        channel = ctx.channel
+        try:
+            emb = discord.Embed(
+                title = snipe_message_author[channel.id],
+                description = snipe_message_content[channel.id],
+                colour = discord.Colour.red()
             )
-        else:
-            await Seco.transfer_balance(ctx.author.id, member.id, amount)
-            await ctx.send(
-                f'Added {amount} to {member.display_name}\'s balance')
+            emb.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar_url)
+            await ctx.send(embed=emb)
+        except:
+            await ctx.send(f"No deleted messages in the last 1 hour in **#{channel.name}**!")
 
-    @commands.command(aliases=['dep'])
-    async def deposit(self, ctx: commands.Context, amount: int=0):
-        balance = await Seco.get_balance(ctx.author.id)
-
-        if balance < amount:
-            await ctx.send('You don\'t have that much money!')
-            return
-        if amount < 0:
-            await ctx.send('You can\'t deposit negative money!')
-            return
-
-        await Seco.remove_balance(ctx.author.id, amount)
-        await Seco.add_bank(ctx.author.id, amount)
-        await ctx.message.reply(f'Deposited {amount}{currency_unit}.')
-        
-    @commands.command(aliases=['with'])
-    async def withdraw(self, ctx: commands.Context, amount: int=0):
-        bank = await Seco.get_bank(ctx.author.id)
-
-        if bank < amount:
-            await ctx.message.reply('You don\'t have that much money!')
-            return
-        if amount < 0:
-            await ctx.message.reply('You can\'t withdraw negative money!')
-            return
-
-        await Seco.add_balance(ctx.author.id, amount)
-        await Seco.remove_bank(ctx.author.id, amount)
-        await ctx.message.reply(f'Withdrew {amount}{currency_unit}.')
-
-    @commands.cooldown(1, 86400, commands.BucketType.user)
     @commands.command()
-    async def daily(self, ctx: commands.Context):
-        await Seco.add_balance(ctx.author.id, 1000)
-        await ctx.message.reply(embed=discord.Embed(
-            title='You got a daily bonus!',
-            description=f'1000{currency_unit} added to your balance!',
-            color=discord.Color.red()
-        ))
+    async def stats(self, ctx: commands.Context):
+        "psutil stats for PyraBot."
+        embed = discord.Embed(
+            title = 'Stats for PyraBot',
+            description = '\n',
+            colour = discord.Colour.red()
+        )
+
+        embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar_url)
+        embed.add_field(name='CPU', value=psutil.cpu_percent(interval=1), inline=True)
+        embed.add_field(name='Memory', value=f'{round(psutil.virtual_memory().available / (1024 ** 3), 2)} of {round(psutil.virtual_memory().total / (1024 ** 3), 2)}GB ({100 - psutil.virtual_memory().percent}%)', inline=True)
+        embed.add_field(name='Servers', value=len(bot.guilds), inline=True)
+        embed.add_field(name='Latency', value=f'{round(bot.latency * 1000, abs(Decimal(bot.latency * 1000).adjusted())+1)}ms', inline=True)
+        embed.set_footer(text='Updated now')
+        await ctx.send(embed=embed)
+
+    @commands.command()
+    async def meme(self, ctx: commands.Context, top: str, bottom: str):
+        "Creates a meme with top text, bottom text, and an image."
+        await ctx.message.attachments[0].save('meme.png')
+                
+        with Image.open('meme.png') as img:
+            size = img.size
+            fontSize = int(size[1] / 5)
+            font = IFont.truetype("impact.ttf", fontSize)
+
+            edit = IDraw.Draw(img)
+
+            # find biggest font size that works
+
+            topTextSize = font.getsize(top)
+            bottomTextSize = font.getsize(bottom)
+            while topTextSize[0] > size[0] - 20 or bottomTextSize[0] > size[0] - 20:
+                fontSize = fontSize - 1
+                font = IFont.truetype("impact.ttf", fontSize)
+                topTextSize = font.getsize(top)
+                bottomTextSize = font.getsize(bottom)
+
+            # find top centered position for top text
+            topTextPositionX = (size[0] / 2) - (topTextSize[0] / 2)
+            topTextPositionY = 0
+            topTextPosition = (topTextPositionX, topTextPositionY)
+
+            # find bottom centered position for bottom text
+            bottomTextPositionX = (size[0] / 2) - (bottomTextSize[0] / 2)
+            bottomTextPositionY = size[1] - bottomTextSize[1] - 10
+            bottomTextPosition = (bottomTextPositionX, bottomTextPositionY)
+
+            # draw outlines
+            # there may be a better way
+            outlineRange = int(fontSize / 15)
+            for x in range(-outlineRange, outlineRange + 1):
+                for y in range(-outlineRange, outlineRange + 1):
+                    edit.text((topTextPosition[0] + x,
+                    topTextPosition[1] + y), top, (0, 0, 0), font=font)
+                    edit.text((bottomTextPosition[0] + x,
+                    bottomTextPosition[1] + y), bottom, (0, 0, 0), font=font)
+
+            edit.text(topTextPosition, top, (255, 255, 255), font=font)
+            edit.text(bottomTextPosition, bottom, (255, 255, 255), font=font)
+            img.save('meme.png')
+
+        await ctx.message.reply(file=discord.File('meme.png'))
+            
+    @commands.command()
+    async def ban(self, ctx: commands.Context):
+        await ctx.author.ban(reason='pingspoofing')
+
+    @commands.command()
+    async def kick(self, ctx: commands.Context):
+        await ctx.author.ban(reason='pingspoofing')
+
+    @commands.command()
+    async def unban(self, ctx: commands.Context):
+        await ctx.author.ban(reason='pingspoofing')
+
+    @tasks.loop(hours=2.0)
+    async def guild_count(self):
+        await bot.change_presence(activity=discord.Activity(
+            type=discord.ActivityType.watching, name=f'p help in {len(bot.guilds)} servers'))
+
+    @guild_count.before_loop
+    async def before_guild_count(self):
+        print('Waiting for bot to ready...')
+        await self.bot.wait_until_ready()
 
 bot.add_cog(Music(bot))
 bot.add_cog(General(bot))
-bot.add_cog(Currency(bot))
 bot.load_extension("jishaku")
+bot.load_extension("cogs.tictactoe")
+bot.load_extension("cogs.battleships")
 
 keepalive()
 bot.run(token)

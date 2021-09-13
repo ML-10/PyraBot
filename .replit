@@ -1,1 +1,0 @@
-run = "pip uninstall typing -y; pip install -r requirements.txt; pip uninstall typing -y; python main.py"

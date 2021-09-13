@@ -1,3 +1,12 @@
 {
-  "files": {}
+  "files": {
+    "filter.txt": [
+      {
+        "id": "a9c2d2cd-d3ae-4011-bd61-0db18a71f957",
+        "line": 1,
+        "version": 1,
+        "index": 0
+      }
+    ]
+  }
 }
